@@ -10,6 +10,8 @@
 static SystemDevs system_devs = {.display_sda_pin = DISPLAY_GPIO_SDA_PIN,
                                  .display_scl_pin = DISPLAY_GPIO_SCL_PIN};
 SystemDevs* system_init(void) {
+    // Initialize display
+    display_init(&system_devs.display);
 
-    return NULL;
+    return &system_devs;
 }
