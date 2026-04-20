@@ -8,6 +8,8 @@
 typedef struct {
     gpio_num_t display_sda_pin;
     gpio_num_t display_scl_pin;
+    gpio_num_t hygrometer_pin;
+    gpio_num_t ldr_pin;
     Display display;
 
 } SystemDevs;

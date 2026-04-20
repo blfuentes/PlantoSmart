@@ -5,7 +5,3 @@ idf_component_register(
 	INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/include"
 	REQUIRES ssd1306 esp_timer
 )
-
-# idf_component_register(SRCS "main.c" "c_system.c" "display.c"
-#                     INCLUDE_DIRS "." "../include"
-#                     REQUIRES driver esp_driver_gpio esp_driver_i2c ssd1306)
