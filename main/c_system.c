@@ -4,7 +4,8 @@
 #include <driver/i2c_master.h>
 #include <stdlib.h>
 
-#define LDR_GPIO GPIO_NUM_3
+#define LDR_GPIO        GPIO_NUM_2
+#define HYGROMETER_GPIO GPIO_NUM_3
 
 static const char* I2C_SCAN_TAG = "SYSTEM";
 
@@ -15,7 +16,8 @@ SystemDevs* system_init(void) {
     display_init(&system_devs.display);
 
     // Initialize sensors
-    system_devs.ldr_pin = LDR_GPIO;
+    system_devs.ldr_pin        = LDR_GPIO;
+    system_devs.hygrometer_pin = HYGROMETER_GPIO;
 
     return &system_devs;
 }

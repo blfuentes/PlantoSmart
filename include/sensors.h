@@ -4,8 +4,8 @@
 #include <driver/i2c_master.h>
 
 typedef struct {
-    gpio_num_t hygrometer_pin;
     gpio_num_t ldr_pin;
+    gpio_num_t hygrometer_pin;
 } SensorConfig;
 
 typedef struct {

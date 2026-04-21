@@ -44,6 +44,8 @@ static void display_task(void* arg) {
         if (xQueueReceive(g_sensor_queue, &msg, pdMS_TO_TICKS(DISPLAY_TASK_TIMEOUT_MS)) == pdPASS) {
             snprintf(g_sysdevs->display.lines[1], DISPLAY_BUFFER_SIZE, "Light: %d%%",
                      (int)msg.data.light_percentage);
+            snprintf(g_sysdevs->display.lines[2], DISPLAY_BUFFER_SIZE, "Humidity: %d%%",
+                     (int)msg.data.humidity_level);
             display_update(&g_sysdevs->display);
         }
     }
@@ -57,8 +59,8 @@ void app_main(void) {
     g_sysdevs = system_init();
 
     SensorConfig sensor_config = {
-        .hygrometer_pin = g_sysdevs->hygrometer_pin,
         .ldr_pin        = g_sysdevs->ldr_pin,
+        .hygrometer_pin = g_sysdevs->hygrometer_pin,
     };
 
     sensors_init(&sensor_config);

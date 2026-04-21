@@ -32,4 +32,5 @@ void display_init(Display* display) {
 
 void display_update(Display* display) {
     ssd1306_display_text(&display->dev, 2, display->lines[1], 18, false);
+    ssd1306_display_text(&display->dev, 4, display->lines[2], 18, false);
 }
