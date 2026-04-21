@@ -19,7 +19,7 @@ void display_init(Display* display) {
     ssd1306_clear_screen(&display->dev, false);
     ssd1306_contrast(&display->dev, 0xff);
     // char starting_text[] = "LOS VEGGIES...";
-    char starting_text[] = "I love you bubu";
+    char starting_text[] = "STARTING...";
 
     ssd1306_display_text(&display->dev, 0, starting_text, 18, false);
 
