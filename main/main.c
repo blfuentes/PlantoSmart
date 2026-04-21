@@ -21,7 +21,15 @@ void app_main(void) {
     };
 
     sensors_init(&sensor_config);
+
+    SensorData data;
     for (;;) {
+        sensors_update(&data);
+
+        snprintf(sysdevs->display.lines[1], DISPLAY_BUFFER_SIZE, "Light: %d%%",
+                 (int)data.light_percentage);
+        display_update(&sysdevs->display);
+
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
