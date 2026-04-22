@@ -5,11 +5,10 @@
 
 static const char* SENSORS_TAG = "SENSORS";
 
-#define LDR_MIN 3100  // dark
-#define LDR_MAX 4095  // bright light
-// Assumes 1:2 voltage divider on AO (3.3V → 1.65V max effective)
-#define HYGROMETER_WET_RAW 1500
-#define HYGROMETER_DRY_RAW 4095
+#define LDR_MIN            3100  // dark
+#define LDR_MAX            4095  // bright light
+#define HYGROMETER_WET_RAW 2100  // under water
+#define HYGROMETER_DRY_RAW 3950  // in open air
 #define HYGROMETER_SAMPLES 8
 
 static adc_oneshot_unit_handle_t adc_handle;

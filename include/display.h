@@ -1,12 +1,16 @@
 #ifndef DISPLAY_H__
 #define DISPLAY_H__
 
-#include <stdbool.h>
 #include <ssd1306.h>
+#include <stdbool.h>
 
-#define DISPLAY_BUFFER_SIZE 16
-#define DISPLAY_NUM_LINES   8
+#define DISPLAY_BUFFER_SIZE            17
+#define DISPLAY_NUM_LINES              8
 #define DISPLAY_MAX_CONSECUTIVE_ERRORS 3
+
+static const int DISPLAY_TITLE_LINE    = 0;
+static const int DISPLAY_LIGHT_LINE    = 1;
+static const int DISPLAY_HUMIDITY_LINE = 2;
 
 typedef struct {
     SSD1306_t dev;

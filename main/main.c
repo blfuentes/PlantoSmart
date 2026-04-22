@@ -42,10 +42,10 @@ static void display_task(void* arg) {
 
     for (;;) {
         if (xQueueReceive(g_sensor_queue, &msg, pdMS_TO_TICKS(DISPLAY_TASK_TIMEOUT_MS)) == pdPASS) {
-            snprintf(g_sysdevs->display.lines[1], DISPLAY_BUFFER_SIZE, "Light: %d%%",
-                     (int)msg.data.light_percentage);
-            snprintf(g_sysdevs->display.lines[2], DISPLAY_BUFFER_SIZE, "Humidity: %d%%",
-                     (int)msg.data.humidity_level);
+            snprintf(g_sysdevs->display.lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE,
+                     "Light:%9d%%", (int)msg.data.light_percentage);
+            snprintf(g_sysdevs->display.lines[DISPLAY_HUMIDITY_LINE], DISPLAY_BUFFER_SIZE,
+                     "Humidity:%6d%%", (int)msg.data.humidity_level);
             display_update(&g_sysdevs->display);
         }
     }
