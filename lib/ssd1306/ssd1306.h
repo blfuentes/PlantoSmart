@@ -2,6 +2,7 @@
 #define MAIN_SSD1306_H_
 
 #include "driver/spi_master.h"
+#include "esp_err.h"
 
 // Following definitions are bollowed from
 // http://robotcantalk.blogspot.com/2015/03/interfacing-arduino-with-ssd1306-driven.html
@@ -146,6 +147,8 @@ void i2c_init(SSD1306_t* dev, int width, int height);
 void i2c_display_image(SSD1306_t* dev, int page, int seg, uint8_t* images, int width);
 void i2c_contrast(SSD1306_t* dev, int contrast);
 void i2c_hardware_scroll(SSD1306_t* dev, ssd1306_scroll_type_t scroll);
+int i2c_display_get_and_clear_error_count(void);
+esp_err_t i2c_display_recover_bus(void);
 
 void spi_master_init(SSD1306_t* dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t GPIO_CS,
                      int16_t GPIO_DC, int16_t GPIO_RESET);

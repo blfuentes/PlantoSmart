@@ -21,7 +21,9 @@
 #define I2C_MASTER_FREQ_HZ 400000 // I2C clock of SSD1306 can run at 400 kHz max.
 #define I2C_TICKS_TO_WAIT 100     // Maximum ticks to wait before issuing a timeout.
 
-i2c_master_dev_handle_t dev_handle;
+static i2c_master_bus_handle_t s_bus_handle;
+static i2c_master_dev_handle_t dev_handle;
+static int s_i2c_error_count;
 
 void i2c_master_init(SSD1306_t * dev, int16_t sda, int16_t scl, int16_t reset)
 {
@@ -34,8 +36,8 @@ void i2c_master_init(SSD1306_t * dev, int16_t sda, int16_t scl, int16_t reset)
 		.sda_io_num = sda,
 		.flags.enable_internal_pullup = true,
 	};
-	i2c_master_bus_handle_t bus_handle;
-	ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+	ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &s_bus_handle));
+	i2c_master_bus_handle_t bus_handle = s_bus_handle;
 
 	i2c_device_config_t dev_cfg = {
 		.dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -157,15 +159,19 @@ void i2c_display_image(SSD1306_t * dev, int page, int seg, uint8_t * images, int
 
 	esp_err_t res;
 	res = i2c_master_transmit(dev_handle, out_buf, out_index, I2C_TICKS_TO_WAIT);
-	if (res != ESP_OK)
+	if (res != ESP_OK) {
+		s_i2c_error_count++;
 		ESP_LOGE(TAG, "Could not write to device [0x%02x at %d]: %d (%s)", dev->_address, I2C_NUM, res, esp_err_to_name(res));
+	}
 
 	out_buf[0] = OLED_CONTROL_BYTE_DATA_STREAM;
 	memcpy(&out_buf[1], images, width);
 
 	res = i2c_master_transmit(dev_handle, out_buf, width + 1, I2C_TICKS_TO_WAIT);
-	if (res != ESP_OK)
+	if (res != ESP_OK) {
+		s_i2c_error_count++;
 		ESP_LOGE(TAG, "Could not write to device [0x%02x at %d]: %d (%s)", dev->_address, I2C_NUM, res, esp_err_to_name(res));
+	}
 	free(out_buf);
 }
 
@@ -258,5 +264,16 @@ void i2c_hardware_scroll(SSD1306_t * dev, ssd1306_scroll_type_t scroll) {
 	esp_err_t res = i2c_master_transmit(dev_handle, out_buf, 3, I2C_TICKS_TO_WAIT);
 	if (res != ESP_OK)
 		ESP_LOGE(TAG, "Could not write to device [0x%02x at %d]: %d (%s)", dev->_address, I2C_NUM, res, esp_err_to_name(res));
+}
+
+int i2c_display_get_and_clear_error_count(void) {
+	int count = s_i2c_error_count;
+	s_i2c_error_count = 0;
+	return count;
+}
+
+esp_err_t i2c_display_recover_bus(void) {
+	ESP_LOGW(TAG, "Attempting I2C bus recovery");
+	return i2c_master_bus_reset(s_bus_handle);
 }
 
