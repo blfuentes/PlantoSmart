@@ -8,6 +8,7 @@ static const int DISPLAY_WIDTH  = 128;
 static const int DISPLAY_HEIGHT = 32;
 static const char* TITLE        = "~ LOS VEGGIES ~";
 static const int TITLE_PAGE     = 0;
+static const int DEBUG_PAGE     = 1;
 static const int LIGHT_PAGE     = 2;
 static const int HUMIDITY_PAGE  = 3;
 
@@ -52,6 +53,13 @@ bool display_update(Display* display) {
     ssd1306_display_text(&display->dev, LIGHT_PAGE, display->lines[DISPLAY_LIGHT_LINE], 18, false);
     ssd1306_display_text(&display->dev, HUMIDITY_PAGE, display->lines[DISPLAY_HUMIDITY_LINE], 18,
                          false);
+    if (display->debug_mode) {
+        ssd1306_display_text(&display->dev, DEBUG_PAGE, display->lines[DISPLAY_DEBUG_PAGE], 18,
+                             false);
+    } else {
+        // Clear debug page if not in debug mode to avoid showing stale data.
+        ssd1306_display_text(&display->dev, DEBUG_PAGE, " ", 1, false);
+    }
 
     int errors = i2c_display_get_and_clear_error_count();
     if (errors == 0) {

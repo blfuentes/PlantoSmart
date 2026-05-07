@@ -9,14 +9,16 @@
 #define DISPLAY_MAX_CONSECUTIVE_ERRORS 3
 
 static const int DISPLAY_TITLE_LINE    = 0;
-static const int DISPLAY_LIGHT_LINE    = 1;
-static const int DISPLAY_HUMIDITY_LINE = 2;
+static const int DISPLAY_DEBUG_PAGE    = 1;
+static const int DISPLAY_LIGHT_LINE    = 2;
+static const int DISPLAY_HUMIDITY_LINE = 3;
 
 typedef struct {
     SSD1306_t dev;
     char lock;
     char lines[DISPLAY_NUM_LINES][DISPLAY_BUFFER_SIZE];
     int consecutive_errors;
+    bool debug_mode;
 } Display;
 
 void display_init(Display* display);

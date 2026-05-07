@@ -7,7 +7,8 @@
 #include <freertos/task.h>
 #include <stdbool.h>
 
-static const bool ENABLE_SCAN = false;
+static const bool ENABLE_SCAN  = false;
+static const bool ENABLE_DEBUG = true;
 
 #define SENSOR_TASK_PERIOD_MS   500
 #define DISPLAY_TASK_TIMEOUT_MS 1000
@@ -46,6 +47,9 @@ static void display_task(void* arg) {
                      "Light:%9d%%", (int)msg.data.light_percentage);
             snprintf(g_sysdevs->display.lines[DISPLAY_HUMIDITY_LINE], DISPLAY_BUFFER_SIZE,
                      "Humidity:%6d%%", (int)msg.data.humidity_level);
+            snprintf(g_sysdevs->display.lines[DISPLAY_DEBUG_PAGE], DISPLAY_BUFFER_SIZE, "LDR:%4d",
+                     (int)msg.data.light_level);
+            g_sysdevs->display.debug_mode = ENABLE_DEBUG;
             display_update(&g_sysdevs->display);
         }
     }
