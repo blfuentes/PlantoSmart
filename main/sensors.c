@@ -1,6 +1,9 @@
 #include "sensors.h"
 
+#include <esp_adc/adc_cali.h>
+#include <esp_adc/adc_cali_scheme.h>
 #include <esp_adc/adc_oneshot.h>
+#include <esp_err.h>
 #include <esp_log.h>
 #include <math.h>
 
@@ -22,6 +25,37 @@ static const char* SENSORS_TAG = "SENSORS";
 static adc_oneshot_unit_handle_t adc_handle;
 static adc_channel_t ldr_channel        = ADC_CHANNEL_2;
 static adc_channel_t hygrometer_channel = ADC_CHANNEL_3;
+static adc_cali_handle_t adc_cali_handle;
+static bool adc_cali_enabled = false;
+
+static bool adc_calibration_init(void) {
+    esp_err_t ret = ESP_FAIL;
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    adc_cali_curve_fitting_config_t cali_config = {
+        .unit_id = ADC_UNIT_1,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
+#elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    adc_cali_line_fitting_config_t cali_config = {
+        .unit_id = ADC_UNIT_1,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_12,
+        .default_vref = 1100,
+    };
+    ret = adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
+#endif
+
+    if (ret == ESP_OK) {
+        ESP_LOGI(SENSORS_TAG, "ADC calibration enabled");
+        return true;
+    }
+
+    ESP_LOGW(SENSORS_TAG, "ADC calibration not available: %s", esp_err_to_name(ret));
+    return false;
+}
 
 static float ldr_raw_to_percent(int raw_value) {
     int clamped_raw = raw_value;
@@ -123,6 +157,8 @@ void sensors_init(const SensorConfig* config) {
     };
     adc_oneshot_config_channel(adc_handle, hygrometer_channel, &hygrometer_chan_cfg);
 
+    adc_cali_enabled = adc_calibration_init();
+
     ESP_LOGI(SENSORS_TAG, "ADC channels configured: LDR=%d Hygrometer=%d", (int)ldr_channel,
              (int)hygrometer_channel);
 }
@@ -136,6 +172,10 @@ void sensors_update(SensorData* data) {
         ldr_sum += sample;
     }
     int ldr_value = ldr_sum / LDR_SAMPLES;
+    int ldr_mv    = 0;
+    if (adc_cali_enabled) {
+        adc_cali_raw_to_voltage(adc_cali_handle, ldr_value, &ldr_mv);
+    }
 
     if (ldr_value >= ADC_SATURATION_RAW) {
         ESP_LOGW(SENSORS_TAG,
@@ -156,7 +196,13 @@ void sensors_update(SensorData* data) {
 
     data->light_level      = (float)ldr_value;  // 0-4095 (raw averaged)
     data->light_percentage = light_pct;         // 0-100%
-    ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %f%%", ldr_value, ldr_clamped, light_pct);
+    if (adc_cali_enabled) {
+        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, %dmV, clamped: %d, %f%%", ldr_value, ldr_mv,
+                 ldr_clamped, light_pct);
+    } else {
+        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %f%%", ldr_value, ldr_clamped,
+                 light_pct);
+    }
 
     // Read and average hygrometer value to reduce ADC noise.
     int hygrometer_sum = 0;
