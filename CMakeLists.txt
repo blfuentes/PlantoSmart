@@ -5,3 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 set(EXTRA_COMPONENT_DIRS ${CMAKE_SOURCE_DIR}/lib/ssd1306)
 project(PlantoSmart)
+
+# Create default event loop if not already created
+idf_build_get_property(build_component_targets BUILD_COMPONENT_TARGETS)
+
