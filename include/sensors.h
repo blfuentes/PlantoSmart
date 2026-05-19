@@ -2,6 +2,7 @@
 #define SENSORS_H__
 
 #include <driver/i2c_master.h>
+#include <stdint.h>
 
 /**
  * @brief GPIO configuration used to bind ADC channels for sensors.
@@ -17,12 +18,12 @@ typedef struct {
  * @brief Normalized and raw sensor readings produced by the sensor module.
  */
 typedef struct {
-    /** Averaged raw ADC value for LDR channel. */
-    float light_level;
+    /** Averaged raw ADC value for LDR channel (0-4095). */
+    uint16_t light_level;
     /** Computed ambient light percentage in range 0-100. */
-    float light_percentage;
+    uint8_t light_percentage;
     /** Computed soil moisture percentage in range 0-100. */
-    float humidity_level;
+    uint8_t humidity_level;
 } SensorData;
 
 /**

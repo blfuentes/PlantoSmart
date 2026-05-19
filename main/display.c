@@ -69,7 +69,7 @@ bool display_update(Display* display) {
 
     display->consecutive_errors++;
     ESP_LOGW(SCREEN_TAG, "I2C errors during update (%d), consecutive=%d", errors,
-             display->consecutive_errors);
+             (int)display->consecutive_errors);
 
     if (display->consecutive_errors >= DISPLAY_MAX_CONSECUTIVE_ERRORS) {
         // Attempt bus recovery first.

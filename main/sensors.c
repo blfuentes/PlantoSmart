@@ -5,19 +5,13 @@
 #include <esp_adc/adc_oneshot.h>
 #include <esp_err.h>
 #include <esp_log.h>
-#include <math.h>
 
 static const char* SENSORS_TAG = "SENSORS";
 
-#define ADC_RAW_MAX        4095.0f
 #define ADC_SATURATION_RAW 4090
 #define LDR_MIN            1300  // dark (~20k LDR with 10k divider)
 #define LDR_MAX            4050  // bright (~0.1k LDR with 10k divider)
 #define LDR_SAMPLES        8
-#define LDR_FIXED_OHMS     10000.0f
-#define LDR_BRIGHT_OHMS    100.0f
-#define LDR_DARK_OHMS      20000.0f
-#define LDR_CURVE_GAMMA    0.65f
 #define HYGROMETER_WET_RAW 2100  // under water
 #define HYGROMETER_DRY_RAW 3950  // in open air
 #define HYGROMETER_SAMPLES 8
@@ -57,7 +51,7 @@ static bool adc_calibration_init(void) {
     return false;
 }
 
-static float ldr_raw_to_percent(int raw_value) {
+static uint8_t ldr_raw_to_percent(int raw_value) {
     int clamped_raw = raw_value;
     if (clamped_raw < LDR_MIN) {
         clamped_raw = LDR_MIN;
@@ -66,30 +60,18 @@ static float ldr_raw_to_percent(int raw_value) {
         clamped_raw = LDR_MAX;
     }
 
-    float raw      = (float)clamped_raw;
-    float ldr_ohms = LDR_FIXED_OHMS * ((ADC_RAW_MAX / raw) - 1.0f);
-    if (ldr_ohms < LDR_BRIGHT_OHMS) {
-        ldr_ohms = LDR_BRIGHT_OHMS;
+    int pct = (clamped_raw - LDR_MIN) * 100 / (LDR_MAX - LDR_MIN);
+    if (pct < 0) {
+        pct = 0;
     }
-    if (ldr_ohms > LDR_DARK_OHMS) {
-        ldr_ohms = LDR_DARK_OHMS;
-    }
-
-    float normalized =
-        (logf(LDR_DARK_OHMS) - logf(ldr_ohms)) / (logf(LDR_DARK_OHMS) - logf(LDR_BRIGHT_OHMS));
-    float light_pct = powf(normalized, LDR_CURVE_GAMMA) * 100.0f;
-
-    if (light_pct < 0.0f) {
-        light_pct = 0.0f;
-    }
-    if (light_pct > 100.0f) {
-        light_pct = 100.0f;
+    if (pct > 100) {
+        pct = 100;
     }
 
-    return light_pct;
+    return (uint8_t)pct;
 }
 
-static float hygrometer_raw_to_percent(int raw_value) {
+static uint8_t hygrometer_raw_to_percent(int raw_value) {
     int clamped_raw = raw_value;
     if (clamped_raw < HYGROMETER_WET_RAW) {
         clamped_raw = HYGROMETER_WET_RAW;
@@ -99,8 +81,15 @@ static float hygrometer_raw_to_percent(int raw_value) {
     }
 
     // Many resistive probes report lower voltage when wetter.
-    return (float)(HYGROMETER_DRY_RAW - clamped_raw) * 100.0f /
-           (float)(HYGROMETER_DRY_RAW - HYGROMETER_WET_RAW);
+    int pct = (HYGROMETER_DRY_RAW - clamped_raw) * 100 /
+              (HYGROMETER_DRY_RAW - HYGROMETER_WET_RAW);
+    if (pct < 0) {
+        pct = 0;
+    }
+    if (pct > 100) {
+        pct = 100;
+    }
+    return (uint8_t)pct;
 }
 
 static bool adc_channel_from_gpio(gpio_num_t gpio, adc_channel_t* channel) {
@@ -192,15 +181,15 @@ void sensors_update(SensorData* data) {
         ldr_clamped = LDR_MAX;
     }
 
-    float light_pct = ldr_raw_to_percent(ldr_value);
+    uint8_t light_pct = ldr_raw_to_percent(ldr_value);
 
-    data->light_level      = (float)ldr_value;  // 0-4095 (raw averaged)
+    data->light_level      = (uint16_t)ldr_value;  // 0-4095 (raw averaged)
     data->light_percentage = light_pct;         // 0-100%
     if (adc_cali_enabled) {
-        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, %dmV, clamped: %d, %f%%", ldr_value, ldr_mv,
+        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, %dmV, clamped: %d, %d%%", ldr_value, ldr_mv,
                  ldr_clamped, light_pct);
     } else {
-        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %f%%", ldr_value, ldr_clamped,
+        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %d%%", ldr_value, ldr_clamped,
                  light_pct);
     }
 
@@ -220,6 +209,6 @@ void sensors_update(SensorData* data) {
     }
 
     data->humidity_level = hygrometer_raw_to_percent(hygrometer_value);  // 0-100%
-    ESP_LOGI(SENSORS_TAG, "Hygrometer raw: %d, moisture: %.1f%%", hygrometer_value,
+    ESP_LOGI(SENSORS_TAG, "Hygrometer raw: %d, moisture: %d%%", hygrometer_value,
              data->humidity_level);
 }
