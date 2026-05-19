@@ -140,7 +140,7 @@ static void display_task(void* arg) {
         // Display WiFi SSID or LDR value in debug line
         const char* ssid = wifi_get_ssid();
         if (ssid) {
-            snprintf(g_sysdevs->display.lines[DISPLAY_DEBUG_PAGE], DISPLAY_BUFFER_SIZE, "WiFi: %s",
+            snprintf(g_sysdevs->display.lines[DISPLAY_DEBUG_PAGE], DISPLAY_BUFFER_SIZE, "W: %s",
                      ssid);
         } else {
             snprintf(g_sysdevs->display.lines[DISPLAY_DEBUG_PAGE], DISPLAY_BUFFER_SIZE, "LDR:%4d",
