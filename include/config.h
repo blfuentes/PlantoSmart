@@ -1,5 +1,11 @@
 #pragma once
 
+#define WIFI_SSID_MAX_LEN 32
+#define WIFI_PASSWORD_MAX_LEN 64
+#define TELEGRAM_BOT_TOKEN_MAX_LEN 64
+#define TELEGRAM_CHAT_ID_MAX_LEN 32
+#define TELEGRAM_MAX_RECIPIENTS 8
+
 /**
  * @brief Load WiFi credentials from .env file
  * @param ssid Buffer to store SSID (must be at least WIFI_SSID_MAX_LEN bytes)
@@ -24,7 +30,12 @@ bool config_load_telegram_bot_token(char* token, int token_len);
  */
 bool config_load_telegram_chat_id(char* chat_id, int chat_id_len);
 
-#define WIFI_SSID_MAX_LEN 32
-#define WIFI_PASSWORD_MAX_LEN 64
-#define TELEGRAM_BOT_TOKEN_MAX_LEN 64
-#define TELEGRAM_CHAT_ID_MAX_LEN 32
+/**
+ * @brief Load one or more Telegram chat ids from generated config or environment
+ * @param chat_ids Output array of chat id buffers
+ * @param max_chat_ids Number of elements in chat_ids array
+ * @param loaded_count Output count of loaded chat ids
+ * @return true if at least one chat id was loaded successfully
+ */
+bool config_load_telegram_chat_ids(char chat_ids[][TELEGRAM_CHAT_ID_MAX_LEN], int max_chat_ids,
+                                   int* loaded_count);

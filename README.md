@@ -12,3 +12,6 @@ Planto smart is a smart orchard project developed in espressif esp-idf that help
 ![breadboard design](./Doc/breadboard-design.png)
 ![schematic design](./Doc/schematic-design.png)
 ### Schematic
+
+## Documentation
+- [Method signatures reference](./Doc/method-signatures.md)

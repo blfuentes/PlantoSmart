@@ -3,7 +3,11 @@
 #include "config.h"
 #include <esp_err.h>
 
+/**
+ * @brief Holds bot token and runtime state for Telegram API requests.
+ */
 typedef struct {
+    /** Bot token provided by Telegram BotFather. */
     char token[TELEGRAM_BOT_TOKEN_MAX_LEN];
 } TelegramBotClient;
 
