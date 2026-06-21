@@ -32,6 +32,7 @@ Defined in include/display.h and implemented in main/display.c.
 ```c
 void display_init(Display* display);
 bool display_update(Display* display);
+void display_show_status(Display* display, const char* line1, const char* line2);
 ```
 
 ### Sensors module
@@ -84,6 +85,7 @@ These are internal static functions that are not exposed via headers.
 ```c
 static void sensor_task(void* arg);
 static void telegram_report_task(void* arg);
+static void boot_telegram_task(void* arg);
 static void display_task(void* arg);
 ```
 
@@ -97,8 +99,8 @@ static void display_reinit(Display* display);
 
 ```c
 static bool adc_calibration_init(void);
-static float ldr_raw_to_percent(int raw_value);
-static float hygrometer_raw_to_percent(int raw_value);
+static uint8_t ldr_raw_to_percent(int raw_value);
+static uint8_t hygrometer_raw_to_percent(int raw_value);
 static bool adc_channel_from_gpio(gpio_num_t gpio, adc_channel_t* channel);
 ```
 
