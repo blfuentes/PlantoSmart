@@ -21,22 +21,23 @@ static adc_channel_t ldr_channel        = ADC_CHANNEL_2;
 static adc_channel_t hygrometer_channel = ADC_CHANNEL_3;
 static adc_cali_handle_t adc_cali_handle;
 static bool adc_cali_enabled = false;
+static bool s_has_ldr        = false;
 
 static bool adc_calibration_init(void) {
     esp_err_t ret = ESP_FAIL;
 
 #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
     adc_cali_curve_fitting_config_t cali_config = {
-        .unit_id = ADC_UNIT_1,
-        .atten = ADC_ATTEN_DB_12,
+        .unit_id  = ADC_UNIT_1,
+        .atten    = ADC_ATTEN_DB_12,
         .bitwidth = ADC_BITWIDTH_12,
     };
     ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
 #elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
     adc_cali_line_fitting_config_t cali_config = {
-        .unit_id = ADC_UNIT_1,
-        .atten = ADC_ATTEN_DB_12,
-        .bitwidth = ADC_BITWIDTH_12,
+        .unit_id      = ADC_UNIT_1,
+        .atten        = ADC_ATTEN_DB_12,
+        .bitwidth     = ADC_BITWIDTH_12,
         .default_vref = 1100,
     };
     ret = adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
@@ -81,8 +82,7 @@ static uint8_t hygrometer_raw_to_percent(int raw_value) {
     }
 
     // Many resistive probes report lower voltage when wetter.
-    int pct = (HYGROMETER_DRY_RAW - clamped_raw) * 100 /
-              (HYGROMETER_DRY_RAW - HYGROMETER_WET_RAW);
+    int pct = (HYGROMETER_DRY_RAW - clamped_raw) * 100 / (HYGROMETER_DRY_RAW - HYGROMETER_WET_RAW);
     if (pct < 0) {
         pct = 0;
     }
@@ -115,7 +115,11 @@ static bool adc_channel_from_gpio(gpio_num_t gpio, adc_channel_t* channel) {
 }
 
 void sensors_init(const SensorConfig* config) {
-    if ((config != NULL) && !adc_channel_from_gpio(config->ldr_pin, &ldr_channel)) {
+    if (config != NULL) {
+        s_has_ldr = config->has_ldr;
+    }
+
+    if (s_has_ldr && (config != NULL) && !adc_channel_from_gpio(config->ldr_pin, &ldr_channel)) {
         ESP_LOGW(SENSORS_TAG, "Invalid LDR GPIO for ADC: %d. Using ADC_CHANNEL_2.",
                  (int)config->ldr_pin);
         ldr_channel = ADC_CHANNEL_2;
@@ -127,17 +131,21 @@ void sensors_init(const SensorConfig* config) {
         hygrometer_channel = ADC_CHANNEL_3;
     }
 
-    // Initialize ADC for LDR
+    // Initialize ADC unit (shared by all channels)
     adc_oneshot_unit_init_cfg_t unit_cfg = {
         .unit_id = ADC_UNIT_1,
     };
-    adc_oneshot_new_unit(&unit_cfg, &adc_handle);
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&unit_cfg, &adc_handle));
 
     adc_oneshot_chan_cfg_t chan_cfg = {
         .atten    = ADC_ATTEN_DB_12,  // Full range ~0-3.3V
         .bitwidth = ADC_BITWIDTH_12,  // 0-4095
     };
-    adc_oneshot_config_channel(adc_handle, ldr_channel, &chan_cfg);
+    if (s_has_ldr) {
+        adc_oneshot_config_channel(adc_handle, ldr_channel, &chan_cfg);
+    } else {
+        ESP_LOGI(SENSORS_TAG, "LDR sensor absent, skipping LDR channel configuration");
+    }
 
     // Initialize ADC for hygrometer
     adc_oneshot_chan_cfg_t hygrometer_chan_cfg = {
@@ -148,56 +156,64 @@ void sensors_init(const SensorConfig* config) {
 
     adc_cali_enabled = adc_calibration_init();
 
-    ESP_LOGI(SENSORS_TAG, "ADC channels configured: LDR=%d Hygrometer=%d", (int)ldr_channel,
+    ESP_LOGI(SENSORS_TAG, "ADC channels: LDR=%s Hygrometer=%d", s_has_ldr ? "enabled" : "disabled",
              (int)hygrometer_channel);
 }
 
 void sensors_update(SensorData* data) {
-    // Read and average LDR value to reduce ADC noise.
-    int ldr_sum = 0;
-    for (int i = 0; i < LDR_SAMPLES; ++i) {
-        int sample = 0;
-        adc_oneshot_read(adc_handle, ldr_channel, &sample);
-        ldr_sum += sample;
-    }
-    int ldr_value = ldr_sum / LDR_SAMPLES;
-    int ldr_mv    = 0;
-    if (adc_cali_enabled) {
-        adc_cali_raw_to_voltage(adc_cali_handle, ldr_value, &ldr_mv);
-    }
+    if (s_has_ldr) {
+        // Read and average LDR value to reduce ADC noise.
+        int ldr_sum = 0;
+        for (int i = 0; i < LDR_SAMPLES; ++i) {
+            int sample = 0;
+            if (adc_oneshot_read(adc_handle, ldr_channel, &sample) != ESP_OK) {
+                ESP_LOGW(SENSORS_TAG, "LDR ADC read failed on sample %d", i);
+            }
+            ldr_sum += sample;
+        }
+        int ldr_value = ldr_sum / LDR_SAMPLES;
+        int ldr_mv    = 0;
+        if (adc_cali_enabled) {
+            adc_cali_raw_to_voltage(adc_cali_handle, ldr_value, &ldr_mv);
+        }
 
-    if (ldr_value >= ADC_SATURATION_RAW) {
-        ESP_LOGW(SENSORS_TAG,
-                 "LDR ADC near saturation (%d). The divider is overdriving the ADC in bright "
-                 "light; use a smaller fixed resistor or reverse the divider.",
-                 ldr_value);
-    }
+        if (ldr_value >= ADC_SATURATION_RAW) {
+            ESP_LOGW(SENSORS_TAG,
+                     "LDR ADC near saturation (%d). The divider is overdriving the ADC in bright "
+                     "light; use a smaller fixed resistor or reverse the divider.",
+                     ldr_value);
+        }
 
-    int ldr_clamped = ldr_value;
-    if (ldr_clamped < LDR_MIN) {
-        ldr_clamped = LDR_MIN;
-    }
-    if (ldr_clamped > LDR_MAX) {
-        ldr_clamped = LDR_MAX;
-    }
+        int ldr_clamped = ldr_value;
+        if (ldr_clamped < LDR_MIN) {
+            ldr_clamped = LDR_MIN;
+        }
+        if (ldr_clamped > LDR_MAX) {
+            ldr_clamped = LDR_MAX;
+        }
 
-    uint8_t light_pct = ldr_raw_to_percent(ldr_value);
-
-    data->light_level      = (uint16_t)ldr_value;  // 0-4095 (raw averaged)
-    data->light_percentage = light_pct;         // 0-100%
-    if (adc_cali_enabled) {
-        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, %dmV, clamped: %d, %d%%", ldr_value, ldr_mv,
-                 ldr_clamped, light_pct);
+        uint8_t light_pct      = ldr_raw_to_percent(ldr_value);
+        data->light_level      = (uint16_t)ldr_value;
+        data->light_percentage = light_pct;
+        if (adc_cali_enabled) {
+            ESP_LOGI(SENSORS_TAG, "LDR raw: %d, %dmV, clamped: %d, %d%%", ldr_value, ldr_mv,
+                     ldr_clamped, light_pct);
+        } else {
+            ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %d%%", ldr_value, ldr_clamped,
+                     light_pct);
+        }
     } else {
-        ESP_LOGI(SENSORS_TAG, "LDR raw: %d, clamped: %d, %d%%", ldr_value, ldr_clamped,
-                 light_pct);
+        data->light_level      = 0;
+        data->light_percentage = 0;
     }
 
     // Read and average hygrometer value to reduce ADC noise.
     int hygrometer_sum = 0;
     for (int i = 0; i < HYGROMETER_SAMPLES; ++i) {
         int sample = 0;
-        adc_oneshot_read(adc_handle, hygrometer_channel, &sample);
+        if (adc_oneshot_read(adc_handle, hygrometer_channel, &sample) != ESP_OK) {
+            ESP_LOGW(SENSORS_TAG, "Hygrometer ADC read failed on sample %d", i);
+        }
         hygrometer_sum += sample;
     }
     int hygrometer_value = hygrometer_sum / HYGROMETER_SAMPLES;
@@ -208,7 +224,7 @@ void sensors_update(SensorData* data) {
                  hygrometer_value);
     }
 
-    data->humidity_level = hygrometer_raw_to_percent(hygrometer_value);  // 0-100%
+    data->humidity_level = hygrometer_raw_to_percent(hygrometer_value);
     ESP_LOGI(SENSORS_TAG, "Hygrometer raw: %d, moisture: %d%%", hygrometer_value,
              data->humidity_level);
 }

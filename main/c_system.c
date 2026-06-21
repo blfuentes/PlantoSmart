@@ -16,6 +16,7 @@ SystemDevs* system_init(void) {
     // Initialize sensors
     system_devs.ldr_pin        = LDR_GPIO;
     system_devs.hygrometer_pin = HYGROMETER_GPIO;
+    system_devs.has_ldr        = false;  // LDR sensor not physically installed
 
     return &system_devs;
 }

@@ -17,6 +17,8 @@ typedef struct {
     gpio_num_t hygrometer_pin;
     /** ADC-capable GPIO connected to the LDR divider output. */
     gpio_num_t ldr_pin;
+    /** True when the LDR sensor is physically installed. */
+    bool has_ldr;
     /** Display driver state and frame buffer lines. */
     Display display;
 

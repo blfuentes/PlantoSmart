@@ -2,6 +2,7 @@
 #define SENSORS_H__
 
 #include <driver/i2c_master.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 /**
@@ -12,6 +13,8 @@ typedef struct {
     gpio_num_t ldr_pin;
     /** ADC-capable GPIO for hygrometer analog output. */
     gpio_num_t hygrometer_pin;
+    /** Set false to skip all LDR reads when the sensor is not physically present. */
+    bool has_ldr;
 } SensorConfig;
 
 /**

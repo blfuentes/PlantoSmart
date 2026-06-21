@@ -70,6 +70,8 @@ static void telegram_report_task(void* arg) {
     char last_sent_text[sizeof(text)] = {0};
     bool has_last_sent_text           = false;
     int send_count                    = 0;
+    int humidity_level                = 0;
+    int light_percentage              = 0;
 
     ESP_LOGI("TELEGRAM_TASK", "Telegram report task started");
 
@@ -87,8 +89,15 @@ static void telegram_report_task(void* arg) {
             continue;
         }
 
-        snprintf(text, sizeof(text), "~Los Veggies~\nLight: %d%%\nHumidity: %d%%",
-                 (int)msg.data.light_percentage, (int)msg.data.humidity_level);
+        char* message    = "~Los Veggies~\nLight: %d%%\nHumidity: %d%%";
+        humidity_level   = (int)msg.data.humidity_level;
+        light_percentage = (int)msg.data.light_percentage;
+
+        if (humidity_level < 30) {
+            message = "ALERT!!! ~Los Veggies~\nLight: %d%%\nHumidity: %d%%";
+        }
+
+        snprintf(text, sizeof(text), message, light_percentage, humidity_level);
 
         // Avoid sending duplicate Telegram messages when sensor values did not change.
         if (has_last_sent_text && strcmp(text, last_sent_text) == 0) {
@@ -97,8 +106,7 @@ static void telegram_report_task(void* arg) {
         }
 
         ESP_LOGI("TELEGRAM_TASK", "[%d] Broadcasting to %d chat(s): light=%d%% humidity=%d%%",
-                 ++send_count, g_telegram_chat_count, (int)msg.data.light_percentage,
-                 (int)msg.data.humidity_level);
+                 ++send_count, g_telegram_chat_count, light_percentage, humidity_level);
 
         bool all_sent = true;
         for (int i = 0; i < g_telegram_chat_count; ++i) {
@@ -129,7 +137,12 @@ static void display_task(void* arg) {
     for (;;) {
         BaseType_t ret = xQueuePeek(g_sensor_queue, &msg, pdMS_TO_TICKS(DISPLAY_TASK_TIMEOUT_MS));
         if (ret != pdPASS) {
-            continue;  // Timeout, no new data
+            snprintf(g_sysdevs->display.lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE,
+                     "Sensor timeout");
+            g_sysdevs->display.lines[DISPLAY_HUMIDITY_LINE][0] = '\0';
+            g_sysdevs->display.debug_mode = false;
+            display_update(&g_sysdevs->display);
+            continue;
         }
 
         snprintf(g_sysdevs->display.lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE, "Light:%9d%%",
@@ -204,6 +217,7 @@ void app_main(void) {
     SensorConfig sensor_config = {
         .ldr_pin        = g_sysdevs->ldr_pin,
         .hygrometer_pin = g_sysdevs->hygrometer_pin,
+        .has_ldr        = g_sysdevs->has_ldr,
     };
 
     sensors_init(&sensor_config);

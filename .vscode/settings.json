@@ -3,14 +3,19 @@
   "idf.openOcdConfigs": [
     "board/esp32c3-builtin.cfg"
   ],
-  "idf.currentSetup": "D:\\esp\\v6.0\\.espressif\\v6.0\\esp-idf",
+  "idf.currentSetup": "D:\\esp\\v6.0.1\\esp-idf",
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32c3"
+    "IDF_TARGET": "esp32c3",
+    "OPENOCD_USB_ADAPTER_LOCATION": "2-5"
   },
   "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clangd.exe",
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
     "--compile-commands-dir=d:\\dev\\PlantoSmart\\build"
-  ]
+  ],
+  "clang-format.executable": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clang-format.exe",
+  "C_Cpp.clang_format_path": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clang-format.exe",
+  "idf.portWin": "COM3",
+  "idf.flashType": "UART"
 }
