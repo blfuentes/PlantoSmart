@@ -153,6 +153,28 @@ static void boot_telegram_task(void* arg) {
     vTaskDelete(NULL);
 }
 
+static void command_task(void* arg) {
+    (void)arg;
+    bool reset_requested = false;
+
+    ESP_LOGI("COMMAND_TASK", "Command task started");
+
+    for (;;) {
+        if (g_telegram_ready && g_telegram_chat_count > 0 && wifi_is_connected()) {
+            esp_err_t ret = telegram_bot_check_reset_command(
+                &g_telegram_client, g_telegram_chat_ids, g_telegram_chat_count, &reset_requested);
+            if (ret == ESP_OK && reset_requested) {
+                ESP_LOGW("COMMAND_TASK", "Reset requested by Telegram command");
+                telegram_bot_send_message(&g_telegram_client, g_telegram_chat_ids[0],
+                                          "Resetting PlantoSmart...");
+                esp_restart();
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
 static void display_task(void* arg) {
     (void)arg;
     SensorMessage msg;
@@ -291,6 +313,8 @@ void app_main(void) {
     xTaskCreate(display_task, "display_task", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY,
                 NULL);
     xTaskCreate(telegram_report_task, "telegram_task", TELEGRAM_TASK_STACK_SIZE, NULL,
+                TELEGRAM_TASK_PRIORITY, NULL);
+    xTaskCreate(command_task, "command_task", TELEGRAM_TASK_STACK_SIZE, NULL,
                 TELEGRAM_TASK_PRIORITY, NULL);
     xTaskCreate(boot_telegram_task, "boot_telegram_task", TELEGRAM_TASK_STACK_SIZE, NULL,
                 TELEGRAM_TASK_PRIORITY, NULL);

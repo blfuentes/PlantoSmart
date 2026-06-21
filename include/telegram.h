@@ -28,3 +28,15 @@ esp_err_t telegram_bot_client_init(TelegramBotClient* client, const char* token)
  */
 esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char* chat_id,
                                     const char* text);
+
+/**
+ * @brief Check for a reset command in recent Telegram updates.
+ * @param client Initialized bot client
+ * @param chat_ids List of authorized Telegram chat IDs as strings
+ * @param chat_count Number of authorized chat IDs
+ * @param reset_requested Set to true when a /reset command is received from an authorized chat
+ * @return ESP_OK on success, otherwise an ESP-IDF error code
+ */
+esp_err_t telegram_bot_check_reset_command(const TelegramBotClient* client,
+                                            const char chat_ids[][TELEGRAM_CHAT_ID_MAX_LEN],
+                                            int chat_count, bool* reset_requested);
