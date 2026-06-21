@@ -166,8 +166,12 @@ static void display_task(void* arg) {
 }
 
 void app_main(void) {
+    g_sysdevs = system_init();
+    display_show_status(&g_sysdevs->display, "Booting", "Display ready");
+
     // Create default event loop for WiFi
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+    display_show_status(&g_sysdevs->display, "Booting", "Event loop");
 
     if (ENABLE_SCAN) {
         scan_i2c_bus(CONFIG_SDA_GPIO, CONFIG_SCL_GPIO);
@@ -182,15 +186,19 @@ void app_main(void) {
         esp_err_t wifi_ret = wifi_init(wifi_ssid, wifi_password);
         if (wifi_ret != ESP_OK) {
             ESP_LOGE("MAIN", "WiFi initialization failed: %s", esp_err_to_name(wifi_ret));
+            display_show_status(&g_sysdevs->display, "WiFi", "Init failed");
         } else {
             ESP_LOGI("MAIN", "WiFi initialized successfully");
+            display_show_status(&g_sysdevs->display, "WiFi", "Ready");
         }
     } else {
         ESP_LOGW("MAIN", "WiFi credentials not available");
+        display_show_status(&g_sysdevs->display, "WiFi", "No config");
     }
 
     char telegram_token[TELEGRAM_BOT_TOKEN_MAX_LEN];
     ESP_LOGI("MAIN", "Loading Telegram bot token...");
+    display_show_status(&g_sysdevs->display, "Booting", "Telegram");
     if (config_load_telegram_bot_token(telegram_token, sizeof(telegram_token))) {
         ESP_LOGI("MAIN", "Telegram token loaded, length=%d", (int)strlen(telegram_token));
         if (telegram_bot_client_init(&g_telegram_client, telegram_token) == ESP_OK) {
@@ -212,8 +220,6 @@ void app_main(void) {
         ESP_LOGW("MAIN", "Telegram bot token not available");
     }
 
-    g_sysdevs = system_init();
-
     SensorConfig sensor_config = {
         .ldr_pin        = g_sysdevs->ldr_pin,
         .hygrometer_pin = g_sysdevs->hygrometer_pin,
@@ -221,6 +227,7 @@ void app_main(void) {
     };
 
     sensors_init(&sensor_config);
+    display_show_status(&g_sysdevs->display, "Booting", "Sensors");
 
     // Queue length 1 with overwrite semantics: latest sensor reading wins.
     g_sensor_queue = xQueueCreate(1, sizeof(SensorMessage));

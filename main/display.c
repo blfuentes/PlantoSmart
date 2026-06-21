@@ -1,6 +1,7 @@
 #include "display.h"
 
 #include <esp_log.h>
+#include <stdio.h>
 #include <string.h>
 
 static const char* SCREEN_TAG   = "DISPLAY";
@@ -43,6 +44,20 @@ static void display_reinit(Display* display) {
     ssd1306_clear_screen(&display->dev, false);
     ssd1306_contrast(&display->dev, 0xff);
     ssd1306_display_text(&display->dev, TITLE_PAGE, display->lines[DISPLAY_TITLE_LINE], 18, false);
+}
+
+void display_show_status(Display* display, const char* line1, const char* line2) {
+    if (display == NULL) {
+        return;
+    }
+
+    const char* first_line  = (line1 != NULL) ? line1 : "";
+    const char* second_line = (line2 != NULL) ? line2 : "";
+
+    snprintf(display->lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE, "%.16s", first_line);
+    snprintf(display->lines[DISPLAY_HUMIDITY_LINE], DISPLAY_BUFFER_SIZE, "%.16s", second_line);
+    display->debug_mode = false;
+    display_update(display);
 }
 
 bool display_update(Display* display) {

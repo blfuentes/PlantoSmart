@@ -44,4 +44,12 @@ void display_init(Display* display);
  */
 bool display_update(Display* display);
 
+/**
+ * @brief Display short boot-time status text on the OLED.
+ * @param display Pointer to initialized display state.
+ * @param line1 First status line to render.
+ * @param line2 Second status line to render.
+ */
+void display_show_status(Display* display, const char* line1, const char* line2);
+
 #endif  // DISPLAY_H__
