@@ -54,6 +54,11 @@ void display_show_status(Display* display, const char* line1, const char* line2)
     const char* first_line  = (line1 != NULL) ? line1 : "";
     const char* second_line = (line2 != NULL) ? line2 : "";
 
+    memset(display->lines[DISPLAY_LIGHT_LINE], ' ', DISPLAY_BUFFER_SIZE);
+    display->lines[DISPLAY_LIGHT_LINE][DISPLAY_BUFFER_SIZE - 1] = '\0';
+    memset(display->lines[DISPLAY_HUMIDITY_LINE], ' ', DISPLAY_BUFFER_SIZE);
+    display->lines[DISPLAY_HUMIDITY_LINE][DISPLAY_BUFFER_SIZE - 1] = '\0';
+
     snprintf(display->lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE, "%.16s", first_line);
     snprintf(display->lines[DISPLAY_HUMIDITY_LINE], DISPLAY_BUFFER_SIZE, "%.16s", second_line);
     display->debug_mode = false;

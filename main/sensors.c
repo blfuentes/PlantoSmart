@@ -8,9 +8,10 @@
 
 static const char* SENSORS_TAG = "SENSORS";
 
-#define ADC_SATURATION_RAW 4090
-#define LDR_MIN            1300  // dark (~20k LDR with 10k divider)
-#define LDR_MAX            4050  // bright (~0.1k LDR with 10k divider)
+#define ADC_SATURATION_RAW 4095
+#define LDR_MIN            1100  // dark ambient light
+#define LDR_INDOOR_RAW     2500  // indoor room light ~40%
+#define LDR_MAX            3900  // bright outdoor light reaches 100% without clipping the ADC
 #define LDR_SAMPLES        8
 #define HYGROMETER_WET_RAW 2100  // under water
 #define HYGROMETER_DRY_RAW 3950  // in open air
@@ -61,7 +62,21 @@ static uint8_t ldr_raw_to_percent(int raw_value) {
         clamped_raw = LDR_MAX;
     }
 
-    int pct = (clamped_raw - LDR_MIN) * 100 / (LDR_MAX - LDR_MIN);
+    int pct = 0;
+    if (clamped_raw <= LDR_MIN) {
+        pct = 0;
+    } else if (clamped_raw < LDR_INDOOR_RAW) {
+        int span = LDR_INDOOR_RAW - LDR_MIN;
+        int x    = clamped_raw - LDR_MIN;
+        pct      = (x * x * 40) / (span * span);
+    } else if (clamped_raw < LDR_MAX) {
+        int span = LDR_MAX - LDR_INDOOR_RAW;
+        int x    = clamped_raw - LDR_INDOOR_RAW;
+        pct      = 40 + (x * x * 60) / (span * span);
+    } else {
+        pct = 100;
+    }
+
     if (pct < 0) {
         pct = 0;
     }
@@ -177,10 +192,9 @@ void sensors_update(SensorData* data) {
             adc_cali_raw_to_voltage(adc_cali_handle, ldr_value, &ldr_mv);
         }
 
-        if (ldr_value >= ADC_SATURATION_RAW) {
-            ESP_LOGW(SENSORS_TAG,
-                     "LDR ADC near saturation (%d). The divider is overdriving the ADC in bright "
-                     "light; use a smaller fixed resistor or reverse the divider.",
+        if (ldr_value >= LDR_MAX) {
+            ESP_LOGD(SENSORS_TAG,
+                     "LDR reading reached bright-light calibration range (%d); using max scale",
                      ldr_value);
         }
 

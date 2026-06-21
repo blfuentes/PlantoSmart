@@ -54,9 +54,6 @@ esp_err_t telegram_bot_client_init(TelegramBotClient* client, const char* token)
 
 esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char* chat_id,
                                     const char* text) {
-    ESP_LOGI(TAG, "Sending message to chat_id: %s", chat_id);
-    ESP_LOGI(TAG, "Message text: %s", text);
-    
     if (!client || client->token[0] == '\0' || !chat_id || !text) {
         ESP_LOGE(TAG, "Invalid argument: client=%p, token_empty=%d, chat_id=%p, text=%p",
                  client, (client ? (int)client->token[0] == '\0' : -1), chat_id, text);
@@ -70,8 +67,6 @@ esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char*
         ESP_LOGE(TAG, "URL construction failed");
         return ESP_ERR_INVALID_SIZE;
     }
-    ESP_LOGI(TAG, "Telegram URL: %s", url);
-
     char chat_id_encoded[128];
     char text_encoded[320];
     if (url_encode(chat_id, chat_id_encoded, sizeof(chat_id_encoded)) == 0 ||
@@ -79,9 +74,6 @@ esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char*
         ESP_LOGE(TAG, "Failed to encode Telegram payload");
         return ESP_ERR_INVALID_SIZE;
     }
-    ESP_LOGI(TAG, "Encoded chat_id: %s", chat_id_encoded);
-    ESP_LOGI(TAG, "Encoded text: %s", text_encoded);
-
     char payload[512];
     written = snprintf(payload, sizeof(payload), "chat_id=%s&text=%s", chat_id_encoded,
                        text_encoded);
@@ -89,37 +81,26 @@ esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char*
         ESP_LOGE(TAG, "Payload construction failed: written=%d", written);
         return ESP_ERR_INVALID_SIZE;
     }
-    ESP_LOGI(TAG, "Payload: %s", payload);
-
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_POST,
         .timeout_ms = 5000,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
-
-    ESP_LOGI(TAG, "Initializing HTTP client");
     esp_http_client_handle_t client_http = esp_http_client_init(&config);
     if (client_http == NULL) {
         ESP_LOGE(TAG, "Failed to init HTTP client");
         return ESP_FAIL;
     }
-    ESP_LOGI(TAG, "HTTP client initialized");
-
     esp_http_client_set_header(client_http, "Content-Type", "application/x-www-form-urlencoded");
     esp_http_client_set_post_field(client_http, payload, (int)strlen(payload));
-
-    ESP_LOGI(TAG, "Performing HTTP request");
     esp_err_t err = esp_http_client_perform(client_http);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
         esp_http_client_cleanup(client_http);
         return err;
     }
-    ESP_LOGI(TAG, "HTTP request completed");
-
     int status = esp_http_client_get_status_code(client_http);
-    ESP_LOGI(TAG, "HTTP Status: %d", status);
     esp_http_client_cleanup(client_http);
 
     if (status != 200) {
@@ -127,6 +108,5 @@ esp_err_t telegram_bot_send_message(const TelegramBotClient* client, const char*
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Message sent successfully!");
     return ESP_OK;
 }

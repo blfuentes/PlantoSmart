@@ -128,6 +128,31 @@ static void telegram_report_task(void* arg) {
     }
 }
 
+static void boot_telegram_task(void* arg) {
+    (void)arg;
+
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
+    if (!g_telegram_ready || g_telegram_chat_count <= 0 || !wifi_is_connected()) {
+        vTaskDelete(NULL);
+        return;
+    }
+
+    const char* boot_message = "PlantoSmart connected and booted";
+    for (int i = 0; i < g_telegram_chat_count; ++i) {
+        esp_err_t ret =
+            telegram_bot_send_message(&g_telegram_client, g_telegram_chat_ids[i], boot_message);
+        if (ret != ESP_OK) {
+            ESP_LOGW("MAIN", "Boot message failed to chat[%d]=%s: %s", i, g_telegram_chat_ids[i],
+                     esp_err_to_name(ret));
+        } else {
+            ESP_LOGI("MAIN", "Boot message sent to chat[%d]", i);
+        }
+    }
+
+    vTaskDelete(NULL);
+}
+
 static void display_task(void* arg) {
     (void)arg;
     SensorMessage msg;
@@ -140,7 +165,7 @@ static void display_task(void* arg) {
             snprintf(g_sysdevs->display.lines[DISPLAY_LIGHT_LINE], DISPLAY_BUFFER_SIZE,
                      "Sensor timeout");
             g_sysdevs->display.lines[DISPLAY_HUMIDITY_LINE][0] = '\0';
-            g_sysdevs->display.debug_mode = false;
+            g_sysdevs->display.debug_mode                      = false;
             display_update(&g_sysdevs->display);
             continue;
         }
@@ -165,13 +190,17 @@ static void display_task(void* arg) {
     }
 }
 
+#define BOOT_DELAY_MS 800
+
 void app_main(void) {
     g_sysdevs = system_init();
     display_show_status(&g_sysdevs->display, "Booting", "Display ready");
+    vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
 
     // Create default event loop for WiFi
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     display_show_status(&g_sysdevs->display, "Booting", "Event loop");
+    vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
 
     if (ENABLE_SCAN) {
         scan_i2c_bus(CONFIG_SDA_GPIO, CONFIG_SCL_GPIO);
@@ -189,16 +218,33 @@ void app_main(void) {
             display_show_status(&g_sysdevs->display, "WiFi", "Init failed");
         } else {
             ESP_LOGI("MAIN", "WiFi initialized successfully");
-            display_show_status(&g_sysdevs->display, "WiFi", "Ready");
+            display_show_status(&g_sysdevs->display, "WiFi", "Connecting");
+
+            int wait_ms = 0;
+            while (!wifi_is_connected() && wait_ms < 15000) {
+                vTaskDelay(pdMS_TO_TICKS(200));
+                wait_ms += 200;
+            }
+
+            if (wifi_is_connected()) {
+                ESP_LOGI("MAIN", "WiFi connected, IP=%s", wifi_get_ip());
+                display_show_status(&g_sysdevs->display, "WiFi", "Connected");
+            } else {
+                ESP_LOGW("MAIN", "WiFi did not connect before timeout");
+                display_show_status(&g_sysdevs->display, "WiFi", "No IP");
+            }
         }
+        vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
     } else {
         ESP_LOGW("MAIN", "WiFi credentials not available");
         display_show_status(&g_sysdevs->display, "WiFi", "No config");
+        vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
     }
 
     char telegram_token[TELEGRAM_BOT_TOKEN_MAX_LEN];
     ESP_LOGI("MAIN", "Loading Telegram bot token...");
-    display_show_status(&g_sysdevs->display, "Booting", "Telegram");
+    display_show_status(&g_sysdevs->display, "Booting", "Connecting Telegram");
+    vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
     if (config_load_telegram_bot_token(telegram_token, sizeof(telegram_token))) {
         ESP_LOGI("MAIN", "Telegram token loaded, length=%d", (int)strlen(telegram_token));
         if (telegram_bot_client_init(&g_telegram_client, telegram_token) == ESP_OK) {
@@ -208,6 +254,7 @@ void app_main(void) {
             if (g_telegram_ready) {
                 ESP_LOGI("MAIN", "Telegram bot client initialized for %d chat(s)",
                          g_telegram_chat_count);
+                display_show_status(&g_sysdevs->display, "Booting", "Telegram ready");
             } else {
                 ESP_LOGW("MAIN",
                          "Telegram token OK but no chat ids found - set TELEGRAM_CHAT_IDS or "
@@ -228,6 +275,7 @@ void app_main(void) {
 
     sensors_init(&sensor_config);
     display_show_status(&g_sysdevs->display, "Booting", "Sensors");
+    vTaskDelay(pdMS_TO_TICKS(BOOT_DELAY_MS));
 
     // Queue length 1 with overwrite semantics: latest sensor reading wins.
     g_sensor_queue = xQueueCreate(1, sizeof(SensorMessage));
@@ -243,6 +291,8 @@ void app_main(void) {
     xTaskCreate(display_task, "display_task", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY,
                 NULL);
     xTaskCreate(telegram_report_task, "telegram_task", TELEGRAM_TASK_STACK_SIZE, NULL,
+                TELEGRAM_TASK_PRIORITY, NULL);
+    xTaskCreate(boot_telegram_task, "boot_telegram_task", TELEGRAM_TASK_STACK_SIZE, NULL,
                 TELEGRAM_TASK_PRIORITY, NULL);
     ESP_LOGI("MAIN", "All tasks created");
 
